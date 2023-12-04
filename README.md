@@ -6,4 +6,5 @@ TL/DR: wc - word, line, character and byte count.
 
 ## License
 
-[GNU GPL, version 3](https://github.com/aubiyko/ccwc/blob/master/LICENSE.md)
+Copyright © 2023 [aubiyko](https://github.com/aubiyko). All rights reserved.
+Released under the [GNU GPL, version 3](https://github.com/aubiyko/ccwc/blob/master/LICENSE.md).

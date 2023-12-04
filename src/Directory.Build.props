@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>aubiyko</Authors>
+    <Copyright>© 2023 aubiyko. All rights reserved.</Copyright>
+  </PropertyGroup>
+</Project>
