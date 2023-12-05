@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with ccwc.  If not, see <https://www.gnu.org/licenses/>.
 
+using System.Text;
+
 namespace ccwc;
 
 public class Counter
@@ -45,40 +47,103 @@ public class Counter
 
     public ulong Lines => _lines;
 
+    bool _countWords;
+
+    public bool CountWords
+    {
+        get => _countWords;
+        set => _countWords = value;
+    }
+
+    ulong _words;
+
+    public ulong Words => _words;
+
     public Counter(int bufferSize = 1024) => _buffer = new byte[bufferSize];
 
-    public void Reset() => _bytes = _lines = 0;
+    public void Reset() => _bytes = _lines = _words = 0;
 
-    public void CountFor(Stream stream)
+    public void CountFor(Stream stream) => CountFor(stream, Encoding.Default);
+
+    public void CountFor(Stream stream, Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(stream, nameof(stream));
+        ArgumentNullException.ThrowIfNull(encoding, nameof(encoding));
         ThrowIfNoMode();
 
-        int read = stream.Read(_buffer);
+        if (!_countWords)
+        {
+            CountFast(stream);
+        }
+        else
+        {
+            CountSlow(stream, encoding);
+        }
+    }
+
+    void ThrowIfNoMode()
+    {
+        if (!_countBytes && !_countNewLines && !_countWords)
+        {
+            throw new InvalidOperationException();
+        }
+    }
+
+    void CountFast(Stream stream)
+    {
+        Span<byte> buf = _buffer;
+
+        int read = stream.Read(buf);
         while (read > 0)
         {
             _bytes += (ulong)read;
 
             if (_countNewLines)
             {
-                CountLines(read);
+                _lines += (ulong)buf.Slice(0, read).Count((byte)'\n');
             }
 
-            read = stream.Read(_buffer);
+            read = stream.Read(buf);
         }
     }
 
-    void ThrowIfNoMode()
+    void CountSlow(Stream stream, Encoding encoding)
     {
-        if (!_countBytes && !_countNewLines)
+        Span<byte> buf = _buffer;
+        int decodedSize = encoding.GetMaxCharCount(_buffer.Length);
+        Span<char> decodedBuffer = new char[decodedSize];
+
+        bool hasWord = false;
+        Decoder decoder = encoding.GetDecoder();
+
+        int read = stream.Read(buf);
+        while (read > 0)
         {
-            throw new InvalidOperationException();
-        }
-    }
+            _bytes += (ulong)read;
 
-    void CountLines(int len)
-    {
-        ReadOnlySpan<byte> span = _buffer;
-        _lines += (ulong)span.Slice(0, len).Count((byte)'\n');
+            int decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, false);
+            for (int i = 0; i < decoded; ++i)
+            {
+                char ch = decodedBuffer[i];
+
+                if (ch == '\n')
+                {
+                    ++_lines;
+                }
+                else if (!char.IsWhiteSpace(ch))
+                {
+                    hasWord = true;
+                }
+                else if (hasWord)
+                {
+                    hasWord = false;
+                    ++_words;
+                }
+            }
+
+            read = stream.Read(buf);
+        }
+
+        decoder.GetCharCount(new ReadOnlySpan<byte>(), true);
     }
 }

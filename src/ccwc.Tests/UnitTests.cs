@@ -38,7 +38,7 @@ public sealed class UnitTests : IDisposable
 
         counter.CountFor(_file);
 
-        counter.Bytes.Should().Be(342190ul);
+        counter.Bytes.Should().Be(342_190ul);
     }
 
     [Fact]
@@ -49,7 +49,18 @@ public sealed class UnitTests : IDisposable
 
         counter.CountFor(_file);
 
-        counter.Lines.Should().Be(7145ul);
+        counter.Lines.Should().Be(7_145ul);
+    }
+
+    [Fact]
+    public void WordCount_IsCorrect()
+    {
+        var counter = new Counter();
+        counter.CountWords = true;
+
+        counter.CountFor(_file);
+
+        counter.Words.Should().Be(58_164ul);
     }
 
     public void Dispose() => _file.Dispose();

@@ -28,14 +28,15 @@ static int Run(Options cliOptions)
 {
     var counter = new Counter();
 
-    if (!cliOptions.CountBytes && !cliOptions.CountLines)
+    if (!cliOptions.CountBytes && !cliOptions.CountLines && !cliOptions.CountWords)
     {
-        counter.CountBytes = counter.CountNewLines = true;
+        counter.CountBytes = counter.CountNewLines = counter.CountWords = true;
     }
     else
     {
         counter.CountBytes = cliOptions.CountBytes;
         counter.CountNewLines = cliOptions.CountLines;
+        counter.CountWords = cliOptions.CountWords;
     }
 
     try
@@ -61,6 +62,11 @@ static int Run(Options cliOptions)
     if (counter.CountNewLines)
     {
         Console.Write(currentFormat, counter.Lines);
+        currentFormat = Format;
+    }
+    if (counter.CountWords)
+    {
+        Console.Write(currentFormat, counter.Words);
         currentFormat = Format;
     }
     if (counter.CountBytes)
