@@ -28,6 +28,16 @@ static int Run(Options cliOptions)
 {
     var counter = new Counter();
 
+    if (!cliOptions.CountBytes && !cliOptions.CountLines)
+    {
+        counter.CountBytes = counter.CountNewLines = true;
+    }
+    else
+    {
+        counter.CountBytes = cliOptions.CountBytes;
+        counter.CountNewLines = cliOptions.CountLines;
+    }
+
     try
     {
         var fileOptions = new FileStreamOptions() { Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.ReadWrite, Options = FileOptions.SequentialScan };
@@ -45,7 +55,19 @@ static int Run(Options cliOptions)
         return -1;
     }
 
-    Console.WriteLine(counter.Bytes);
+    const string Format = " {0}";
+    string currentFormat = "{0}";
+
+    if (counter.CountNewLines)
+    {
+        Console.Write(currentFormat, counter.Lines);
+        currentFormat = Format;
+    }
+    if (counter.CountBytes)
+    {
+        Console.Write(currentFormat, counter.Bytes);
+    }
+
     return 0;
 }
 

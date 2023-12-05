@@ -34,10 +34,22 @@ public sealed class UnitTests : IDisposable
     public void ByteCount_IsCorrect()
     {
         var counter = new Counter();
+        counter.CountBytes = true;
 
         counter.CountFor(_file);
 
         counter.Bytes.Should().Be(342190ul);
+    }
+
+    [Fact]
+    public void LineCount_IsCorrect()
+    {
+        var counter = new Counter();
+        counter.CountNewLines = true;
+
+        counter.CountFor(_file);
+
+        counter.Lines.Should().Be(7145ul);
     }
 
     public void Dispose() => _file.Dispose();

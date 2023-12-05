@@ -21,24 +21,64 @@ public class Counter
 {
     readonly byte[] _buffer;
 
+    bool _countBytes;
+
+    public bool CountBytes
+    {
+        get => _countBytes;
+        set => _countBytes = value;
+    }
+
     ulong _bytes;
 
     public ulong Bytes => _bytes;
 
+    bool _countNewLines;
+
+    public bool CountNewLines
+    {
+        get => _countNewLines;
+        set => _countNewLines = value;
+    }
+
+    ulong _lines;
+
+    public ulong Lines => _lines;
+
     public Counter(int bufferSize = 1024) => _buffer = new byte[bufferSize];
 
-    public void Reset() => _bytes = 0;
+    public void Reset() => _bytes = _lines = 0;
 
     public void CountFor(Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream, nameof(stream));
+        ThrowIfNoMode();
 
         int read = stream.Read(_buffer);
         while (read > 0)
         {
             _bytes += (ulong)read;
 
+            if (_countNewLines)
+            {
+                CountLines(read);
+            }
+
             read = stream.Read(_buffer);
         }
+    }
+
+    void ThrowIfNoMode()
+    {
+        if (!_countBytes && !_countNewLines)
+        {
+            throw new InvalidOperationException();
+        }
+    }
+
+    void CountLines(int len)
+    {
+        ReadOnlySpan<byte> span = _buffer;
+        _lines += (ulong)span.Slice(0, len).Count((byte)'\n');
     }
 }

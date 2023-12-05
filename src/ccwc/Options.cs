@@ -24,14 +24,18 @@ class Options
     [Option('c', "bytes")]
     public bool CountBytes { get; }
 
+    [Option('l', "lines")]
+    public bool CountLines { get; }
+
     [Value(0, Required = true, MetaName = "FILE")]
     public string FileName { get; }
 
-    public Options(bool countBytes, string fileName)
+    public Options(bool countBytes, bool countLines, string fileName)
     {
         ArgumentException.ThrowIfNullOrEmpty(nameof(countBytes));
 
         CountBytes = countBytes;
+        CountLines = countLines;
         FileName = fileName;
     }
 }
