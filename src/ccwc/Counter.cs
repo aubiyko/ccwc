@@ -59,9 +59,21 @@ public class Counter
 
     public ulong Words => _words;
 
+    bool _countChars;
+
+    public bool CountCharacters
+    {
+        get => _countChars;
+        set => _countChars = value;
+    }
+
+    ulong _chars;
+
+    public ulong Characters => _chars;
+
     public Counter(int bufferSize = 1024) => _buffer = new byte[bufferSize];
 
-    public void Reset() => _bytes = _lines = _words = 0;
+    public void Reset() => _bytes = _lines = _words = _chars = 0;
 
     public void CountFor(Stream stream) => CountFor(stream, Encoding.Default);
 
@@ -71,7 +83,7 @@ public class Counter
         ArgumentNullException.ThrowIfNull(encoding, nameof(encoding));
         ThrowIfNoMode();
 
-        if (!_countWords)
+        if (!_countWords && !_countChars)
         {
             CountFast(stream);
         }
@@ -83,7 +95,7 @@ public class Counter
 
     void ThrowIfNoMode()
     {
-        if (!_countBytes && !_countNewLines && !_countWords)
+        if (!_countBytes && !_countNewLines && !_countWords && !_countChars)
         {
             throw new InvalidOperationException();
         }
@@ -122,6 +134,8 @@ public class Counter
             _bytes += (ulong)read;
 
             int decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, false);
+            _chars += (ulong)decoded;
+
             for (int i = 0; i < decoded; ++i)
             {
                 char ch = decodedBuffer[i];

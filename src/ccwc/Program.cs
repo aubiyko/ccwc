@@ -15,10 +15,14 @@
 // You should have received a copy of the GNU General Public License
 // along with ccwc.  If not, see <https://www.gnu.org/licenses/>.
 
+using System.Globalization;
 using System.Security;
+using System.Text;
 using ccwc;
 using CommandLine;
 using CommandLine.Text;
+
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
 var parser = new Parser(parserSettings => parserSettings.HelpWriter = null);
 ParserResult<Options> result = parser.ParseArguments<Options>(args);
@@ -28,7 +32,7 @@ static int Run(Options cliOptions)
 {
     var counter = new Counter();
 
-    if (!cliOptions.CountBytes && !cliOptions.CountLines && !cliOptions.CountWords)
+    if (!cliOptions.CountBytes && !cliOptions.CountLines && !cliOptions.CountWords && !cliOptions.CountCharacters)
     {
         counter.CountBytes = counter.CountNewLines = counter.CountWords = true;
     }
@@ -37,6 +41,7 @@ static int Run(Options cliOptions)
         counter.CountBytes = cliOptions.CountBytes;
         counter.CountNewLines = cliOptions.CountLines;
         counter.CountWords = cliOptions.CountWords;
+        counter.CountCharacters = cliOptions.CountCharacters;
     }
 
     try
@@ -44,7 +49,8 @@ static int Run(Options cliOptions)
         var fileOptions = new FileStreamOptions() { Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.ReadWrite, Options = FileOptions.SequentialScan };
         using var file = new FileStream(cliOptions.FileName, fileOptions);
 
-        counter.CountFor(file);
+        int encoding = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
+        counter.CountFor(file, Encoding.GetEncoding(encoding));
     }
     catch (SystemException ex) when (ex is ArgumentException
         || ex is NotSupportedException
@@ -67,6 +73,11 @@ static int Run(Options cliOptions)
     if (counter.CountWords)
     {
         Console.Write(currentFormat, counter.Words);
+        currentFormat = Format;
+    }
+    if (counter.CountCharacters)
+    {
+        Console.Write(currentFormat, counter.Characters);
         currentFormat = Format;
     }
     if (counter.CountBytes)

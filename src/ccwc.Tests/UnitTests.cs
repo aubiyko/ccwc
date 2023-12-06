@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with ccwc.  If not, see <https://www.gnu.org/licenses/>.
 
+using System.Text;
 using FluentAssertions;
 using Xunit;
 
@@ -61,6 +62,18 @@ public sealed class UnitTests : IDisposable
         counter.CountFor(_file);
 
         counter.Words.Should().Be(58_164ul);
+    }
+
+    [Fact]
+    public void CharacterCount_IsCorrect()
+    {
+        var counter = new Counter();
+        counter.CountCharacters = true;
+        var utf8bom = new UTF8Encoding(true);
+
+        counter.CountFor(_file, utf8bom);
+
+        counter.Characters.Should().Be(339_292ul);
     }
 
     public void Dispose() => _file.Dispose();

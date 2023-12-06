@@ -30,16 +30,20 @@ class Options
     [Option('w', "words")]
     public bool CountWords { get; }
 
+    [Option('m', "chars")]
+    public bool CountCharacters { get; }
+
     [Value(0, Required = true, MetaName = "FILE")]
     public string FileName { get; }
 
-    public Options(bool countBytes, bool countLines, bool countWords, string fileName)
+    public Options(bool countBytes, bool countLines, bool countWords, bool countCharacters, string fileName)
     {
         ArgumentException.ThrowIfNullOrEmpty(nameof(countBytes));
 
         CountBytes = countBytes;
         CountLines = countLines;
         CountWords = countWords;
+        CountCharacters = countCharacters;
         FileName = fileName;
     }
 }
