@@ -21,6 +21,8 @@ namespace ccwc;
 
 class Options
 {
+    public const string StdIn = "-";
+
     [Option('c', "bytes")]
     public bool CountBytes { get; }
 
@@ -33,10 +35,10 @@ class Options
     [Option('m', "chars")]
     public bool CountCharacters { get; }
 
-    [Value(0, MetaName = "FILE")]
-    public string? FileName { get; }
+    [Value(0, MetaName = "FILE", Default = new[] { StdIn })]
+    public IEnumerable<string> FileNames { get; }
 
-    public Options(bool countBytes, bool countLines, bool countWords, bool countCharacters, string? fileName)
+    public Options(bool countBytes, bool countLines, bool countWords, bool countCharacters, IEnumerable<string> fileNames)
     {
         ArgumentException.ThrowIfNullOrEmpty(nameof(countBytes));
 
@@ -44,6 +46,6 @@ class Options
         CountLines = countLines;
         CountWords = countWords;
         CountCharacters = countCharacters;
-        FileName = fileName;
+        FileNames = fileNames;
     }
 }

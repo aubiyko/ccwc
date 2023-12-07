@@ -30,6 +30,100 @@ return result.MapResult(Run, _ => DisplayHelp(result));
 
 static int Run(Options cliOptions)
 {
+    var results = new List<(string, Counter)>(cliOptions.FileNames.Count());
+
+    try
+    {
+        int codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
+        var encoding = Encoding.GetEncoding(codePage);
+
+        ulong totalLines = 0;
+        ulong totalWords = 0;
+        ulong totalChars = 0;
+        ulong totalBytes = 0;
+
+        foreach (string fileName in cliOptions.FileNames)
+        {
+            Counter counter = Count(cliOptions, fileName, encoding);
+            results.Add((fileName, counter));
+
+            totalLines += counter.Lines;
+            totalWords += counter.Words;
+            totalChars += counter.Characters;
+            totalBytes += counter.Bytes;
+        }
+
+        int linesLen = GetDigitsNumber(totalLines);
+        int wordsLen = GetDigitsNumber(totalWords);
+        int charsLen = GetDigitsNumber(totalChars);
+        int bytesLen = GetDigitsNumber(totalBytes);
+
+        string linesFmt = "{0," + linesLen + "} ";
+        string wordsFmt = "{0," + wordsLen + "} ";
+        string charsFmt = "{0," + charsLen + "} ";
+        string bytesFmt = "{0," + bytesLen + "} ";
+
+        foreach ((string fileName, Counter counter) in results)
+        {
+            if (counter.CountNewLines)
+            {
+                Console.Write(linesFmt, counter.Lines);
+            }
+            if (counter.CountWords)
+            {
+                Console.Write(wordsFmt, counter.Words);
+            }
+            if (counter.CountCharacters)
+            {
+                Console.Write(charsFmt, counter.Characters);
+            }
+            if (counter.CountBytes)
+            {
+                Console.Write(bytesFmt, counter.Bytes);
+            }
+
+            string simpleFileName = Path.GetFileName(fileName);
+            Console.WriteLine(simpleFileName);
+        }
+
+        if (results.Count > 1)
+        {
+            (_, Counter counter) = results[0];
+            if (counter.CountNewLines)
+            {
+                Console.Write(linesFmt, totalLines);
+            }
+            if (counter.CountWords)
+            {
+                Console.Write(wordsFmt, totalWords);
+            }
+            if (counter.CountCharacters)
+            {
+                Console.Write(charsFmt, totalChars);
+            }
+            if (counter.CountBytes)
+            {
+                Console.Write(bytesFmt, totalBytes);
+            }
+
+            Console.WriteLine("total");
+        }
+    }
+    catch (SystemException ex) when (ex is ArgumentException
+        || ex is NotSupportedException
+        || ex is IOException
+        || ex is SecurityException
+        || ex is UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine(ex.Message);
+        return -1;
+    }
+
+    return 0;
+}
+
+static Counter Count(Options cliOptions, string fileName, Encoding encoding)
+{
     var counter = new Counter();
 
     if (!cliOptions.CountBytes && !cliOptions.CountLines && !cliOptions.CountWords && !cliOptions.CountCharacters)
@@ -45,12 +139,10 @@ static int Run(Options cliOptions)
     }
 
     Stream? input = null;
+
     try
     {
-        Encoding encoding;
-
-        string? fileName = cliOptions.FileName;
-        if (string.IsNullOrEmpty(fileName) || fileName == "-")
+        if (fileName == Options.StdIn)
         {
             input = Console.OpenStandardInput();
             encoding = Console.InputEncoding;
@@ -59,50 +151,25 @@ static int Run(Options cliOptions)
         {
             var fileOptions = new FileStreamOptions() { Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.ReadWrite, Options = FileOptions.SequentialScan };
             input = new FileStream(fileName, fileOptions);
-
-            int codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
-            encoding = Encoding.GetEncoding(codePage);
         }
         counter.CountFor(input, encoding);
-    }
-    catch (SystemException ex) when (ex is ArgumentException
-        || ex is NotSupportedException
-        || ex is IOException
-        || ex is SecurityException
-        || ex is UnauthorizedAccessException)
-    {
-        Console.Error.WriteLine(ex.Message);
-        return -1;
+
+        return counter;
     }
     finally
     {
         input?.Dispose();
     }
+}
 
-    const string Format = " {0}";
-    string currentFormat = "{0}";
-
-    if (counter.CountNewLines)
+static int GetDigitsNumber(ulong num)
+{
+    if (num == 0)
     {
-        Console.Write(currentFormat, counter.Lines);
-        currentFormat = Format;
-    }
-    if (counter.CountWords)
-    {
-        Console.Write(currentFormat, counter.Words);
-        currentFormat = Format;
-    }
-    if (counter.CountCharacters)
-    {
-        Console.Write(currentFormat, counter.Characters);
-        currentFormat = Format;
-    }
-    if (counter.CountBytes)
-    {
-        Console.Write(currentFormat, counter.Bytes);
+        return 1;
     }
 
-    return 0;
+    return (int)Math.Floor(Math.Log10(num)) + 1;
 }
 
 static int DisplayHelp(ParserResult<Options> result)
