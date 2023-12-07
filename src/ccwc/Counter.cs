@@ -105,6 +105,8 @@ public class Counter
     {
         Span<byte> buf = _buffer;
 
+        bool skipLF = false;
+
         int read = stream.Read(buf);
         while (read > 0)
         {
@@ -112,11 +114,37 @@ public class Counter
 
             if (_countNewLines)
             {
-                _lines += (ulong)buf.Slice(0, read).Count((byte)'\n');
+                skipLF = CountLines(buf.Slice(0, read), skipLF);
             }
 
             read = stream.Read(buf);
         }
+    }
+
+    bool CountLines(ReadOnlySpan<byte> buf, bool skipLF)
+    {
+        const byte CR = (byte)'\r';
+        const byte LF = (byte)'\n';
+
+        for (int i = 0, len = buf.Length; i < len; ++i)
+        {
+            byte c = buf[i];
+            if (c == CR)
+            {
+                ++_lines;
+                skipLF = true;
+            }
+            else if (c == LF)
+            {
+                if (!skipLF)
+                {
+                    ++_lines;
+                }
+                skipLF = false;
+            }
+        }
+
+        return skipLF;
     }
 
     void CountSlow(Stream stream, Encoding encoding)
@@ -125,39 +153,52 @@ public class Counter
         int decodedSize = encoding.GetMaxCharCount(_buffer.Length);
         Span<char> decodedBuffer = new char[decodedSize];
 
+        bool skipLF = false;
         bool hasWord = false;
         Decoder decoder = encoding.GetDecoder();
 
         int read = stream.Read(buf);
-        while (read > 0)
+        int decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, read <= 0);
+
+        while (decoded > 0)
         {
             _bytes += (ulong)read;
-
-            int decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, false);
             _chars += (ulong)decoded;
 
             for (int i = 0; i < decoded; ++i)
             {
                 char ch = decodedBuffer[i];
 
-                if (ch == '\n')
-                {
-                    ++_lines;
-                }
-                else if (!char.IsWhiteSpace(ch))
+                if (!char.IsWhiteSpace(ch))
                 {
                     hasWord = true;
                 }
-                else if (hasWord)
+                else
                 {
+                    if (hasWord)
+                    {
+                        ++_words;
+                    }
                     hasWord = false;
-                    ++_words;
+
+                    if (ch == '\r')
+                    {
+                        ++_lines;
+                        skipLF = true;
+                    }
+                    else if (ch == '\n')
+                    {
+                        if (!skipLF)
+                        {
+                            ++_lines;
+                        }
+                        skipLF = false;
+                    }
                 }
             }
 
             read = stream.Read(buf);
+            decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, read <= 0);
         }
-
-        decoder.GetCharCount(new ReadOnlySpan<byte>(), true);
     }
 }
