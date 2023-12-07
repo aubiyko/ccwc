@@ -33,10 +33,10 @@ class Options
     [Option('m', "chars")]
     public bool CountCharacters { get; }
 
-    [Value(0, Required = true, MetaName = "FILE")]
-    public string FileName { get; }
+    [Value(0, MetaName = "FILE")]
+    public string? FileName { get; }
 
-    public Options(bool countBytes, bool countLines, bool countWords, bool countCharacters, string fileName)
+    public Options(bool countBytes, bool countLines, bool countWords, bool countCharacters, string? fileName)
     {
         ArgumentException.ThrowIfNullOrEmpty(nameof(countBytes));
 

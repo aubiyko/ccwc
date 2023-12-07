@@ -44,13 +44,26 @@ static int Run(Options cliOptions)
         counter.CountCharacters = cliOptions.CountCharacters;
     }
 
+    Stream? input = null;
     try
     {
-        var fileOptions = new FileStreamOptions() { Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.ReadWrite, Options = FileOptions.SequentialScan };
-        using var file = new FileStream(cliOptions.FileName, fileOptions);
+        Encoding encoding;
 
-        int encoding = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
-        counter.CountFor(file, Encoding.GetEncoding(encoding));
+        string? fileName = cliOptions.FileName;
+        if (string.IsNullOrEmpty(fileName) || fileName == "-")
+        {
+            input = Console.OpenStandardInput();
+            encoding = Console.InputEncoding;
+        }
+        else
+        {
+            var fileOptions = new FileStreamOptions() { Mode = FileMode.Open, Access = FileAccess.Read, Share = FileShare.ReadWrite, Options = FileOptions.SequentialScan };
+            input = new FileStream(fileName, fileOptions);
+
+            int codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
+            encoding = Encoding.GetEncoding(codePage);
+        }
+        counter.CountFor(input, encoding);
     }
     catch (SystemException ex) when (ex is ArgumentException
         || ex is NotSupportedException
@@ -60,6 +73,10 @@ static int Run(Options cliOptions)
     {
         Console.Error.WriteLine(ex.Message);
         return -1;
+    }
+    finally
+    {
+        input?.Dispose();
     }
 
     const string Format = " {0}";
