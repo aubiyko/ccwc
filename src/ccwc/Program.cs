@@ -180,7 +180,8 @@ static int DisplayHelp(ParserResult<Options> result)
         h.Heading = @"ccwc Copyright (C) 2023 aubiyko. All rights reserved.
 This program comes with ABSOLUTELY NO WARRANTY.
 This is free software, and you are welcome to redistribute it under certain
-conditions; see the file LICENSE.md for details.";
+conditions; see the file LICENSE.md for details.
+";
         h.Copyright = "";
         return h;
     });

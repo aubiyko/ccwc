@@ -16,28 +16,69 @@
 // along with ccwc.  If not, see <https://www.gnu.org/licenses/>.
 
 using CommandLine;
+using CommandLine.Text;
 
 namespace ccwc;
 
+/// <summary>
+/// Command line options.
+/// </summary>
+/// <remarks>This class is thread-safe.</remarks>
 class Options
 {
+    /// <summary>
+    /// Name of the standard input.
+    /// </summary>
     public const string StdIn = "-";
 
-    [Option('c', "bytes")]
+    /// <summary>
+    /// Gets the value indicating whether to perform byte count.
+    /// </summary>
+    [Option('c', "bytes", HelpText = "Count bytes.")]
     public bool CountBytes { get; }
 
-    [Option('l', "lines")]
+    /// <summary>
+    /// Gets the value indicating whether to perform line count.
+    /// </summary>
+    [Option('l', "lines", HelpText = "Count lines.")]
     public bool CountLines { get; }
 
-    [Option('w', "words")]
+    /// <summary>
+    /// Gets the value indicating whether to perform word count.
+    /// </summary>
+    [Option('w', "words", HelpText = "Count words.")]
     public bool CountWords { get; }
 
-    [Option('m', "chars")]
+    /// <summary>
+    /// Gets the value indicating whether to perform character count.
+    /// </summary>
+    [Option('m', "chars", HelpText = "Count characters.")]
     public bool CountCharacters { get; }
 
-    [Value(0, MetaName = "FILE", Default = new[] { StdIn })]
+    /// <summary>
+    /// Gets the collection of input files.
+    /// </summary>
+    [Value(0, Default = new[] { StdIn }, HelpText = "A whitespace separated sequence of input files.")]
     public IEnumerable<string> FileNames { get; }
 
+    /// <summary>
+    /// Gets the collection of usage examples.
+    /// </summary>
+    [Usage]
+    public static IEnumerable<Example> Usage { get; } = new[]
+    {
+        new Example("Count bytes, lines and words from stdin", new Options(false, false, false, false, Array.Empty<string>())),
+        new Example("Count words from file A", new Options(false, false, true, false, new[] { "A" }))
+    };
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Options"/> class.
+    /// </summary>
+    /// <param name="countBytes">A value indicating whether to perform byte count.</param>
+    /// <param name="countLines">A value indicating whether to perform line count.</param>
+    /// <param name="countWords">A value indicating whether to perform word count.</param>
+    /// <param name="countCharacters">A value indicating whether to perform character count.</param>
+    /// <param name="fileNames">A collection of input files.</param>
     public Options(bool countBytes, bool countLines, bool countWords, bool countCharacters, IEnumerable<string> fileNames)
     {
         ArgumentException.ThrowIfNullOrEmpty(nameof(countBytes));

@@ -19,12 +19,18 @@ using System.Text;
 
 namespace ccwc;
 
+/// <summary>
+/// Bytes or text cumulative statistics.
+/// </summary>
 public class Counter
 {
     readonly byte[] _buffer;
 
     bool _countBytes;
 
+    /// <summary>
+    /// Gets or sets the value indicating whether to perform byte count.
+    /// </summary>
     public bool CountBytes
     {
         get => _countBytes;
@@ -33,10 +39,17 @@ public class Counter
 
     ulong _bytes;
 
+    /// <summary>
+    /// Gets the amount of bytes.
+    /// </summary>
     public ulong Bytes => _bytes;
 
     bool _countNewLines;
 
+    /// <summary>
+    /// Gets or sets the value indicating whether to perform line count.
+    /// </summary>
+    /// <remarks>See <see cref="Lines"/> for line definition.</remarks>
     public bool CountNewLines
     {
         get => _countNewLines;
@@ -45,10 +58,18 @@ public class Counter
 
     ulong _lines;
 
+    /// <summary>
+    /// Gets the amount of lines.
+    /// A line is defined as a sequence of bytes ending on CR, LF or CR & LF.
+    /// </summary>
     public ulong Lines => _lines;
 
     bool _countWords;
 
+    /// <summary>
+    /// Gets or sets the value indicating whether to perform word count.
+    /// </summary>
+    /// <remarks>See <see cref="Words"/> for word definition.</remarks>
     public bool CountWords
     {
         get => _countWords;
@@ -57,10 +78,17 @@ public class Counter
 
     ulong _words;
 
+    /// <summary>
+    /// Gets the amount of words.
+    /// A word is the sequence of non-whitespace bytes.
+    /// </summary>
     public ulong Words => _words;
 
     bool _countChars;
 
+    /// <summary>
+    /// Gets or sets the value indicating whether to perform character count.
+    /// </summary>
     public bool CountCharacters
     {
         get => _countChars;
@@ -69,14 +97,33 @@ public class Counter
 
     ulong _chars;
 
+    /// <summary>
+    /// Gets the amount of characters.
+    /// </summary>
     public ulong Characters => _chars;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Counter"/> class.
+    /// </summary>
+    /// <param name="bufferSize">A read buffer size, in bytes.</param>
     public Counter(int bufferSize = 1024) => _buffer = new byte[bufferSize];
 
+    /// <summary>
+    /// Clears the statistics.
+    /// </summary>
     public void Reset() => _bytes = _lines = _words = _chars = 0;
 
+    /// <summary>
+    /// Calculates and cumulates the statistics for the specified <see cref="Stream"/>.
+    /// </summary>
+    /// <param name="stream">An input stream.</param>
     public void CountFor(Stream stream) => CountFor(stream, Encoding.Default);
 
+    /// <summary>
+    /// Calculates and cumulates the statistics for the specified <see cref="Stream"/>.
+    /// </summary>
+    /// <param name="stream">An input stream.</param>
+    /// <param name="encoding">A character encoding.</param>
     public void CountFor(Stream stream, Encoding encoding)
     {
         ArgumentNullException.ThrowIfNull(stream, nameof(stream));
