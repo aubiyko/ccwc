@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with ccwc.  If not, see <https://www.gnu.org/licenses/>.
 
+using System.Buffers;
 using System.Text;
 
 namespace ccwc;
@@ -22,20 +23,15 @@ namespace ccwc;
 /// <summary>
 /// Bytes or text cumulative statistics.
 /// </summary>
+/// <remarks>This class is thread-safe, except for <see cref="Reset"/> method.</remarks>
 public class Counter
 {
-    readonly byte[] _buffer;
-
-    bool _countBytes;
+    readonly int _bufferSize;
 
     /// <summary>
     /// Gets or sets the value indicating whether to perform byte count.
     /// </summary>
-    public bool CountBytes
-    {
-        get => _countBytes;
-        set => _countBytes = value;
-    }
+    public bool CountBytes { get; set; }
 
     ulong _bytes;
 
@@ -44,17 +40,11 @@ public class Counter
     /// </summary>
     public ulong Bytes => _bytes;
 
-    bool _countNewLines;
-
     /// <summary>
     /// Gets or sets the value indicating whether to perform line count.
     /// </summary>
     /// <remarks>See <see cref="Lines"/> for line definition.</remarks>
-    public bool CountNewLines
-    {
-        get => _countNewLines;
-        set => _countNewLines = value;
-    }
+    public bool CountNewLines { get; set; }
 
     ulong _lines;
 
@@ -64,17 +54,11 @@ public class Counter
     /// </summary>
     public ulong Lines => _lines;
 
-    bool _countWords;
-
     /// <summary>
     /// Gets or sets the value indicating whether to perform word count.
     /// </summary>
     /// <remarks>See <see cref="Words"/> for word definition.</remarks>
-    public bool CountWords
-    {
-        get => _countWords;
-        set => _countWords = value;
-    }
+    public bool CountWords { get; set; }
 
     ulong _words;
 
@@ -84,16 +68,10 @@ public class Counter
     /// </summary>
     public ulong Words => _words;
 
-    bool _countChars;
-
     /// <summary>
     /// Gets or sets the value indicating whether to perform character count.
     /// </summary>
-    public bool CountCharacters
-    {
-        get => _countChars;
-        set => _countChars = value;
-    }
+    public bool CountCharacters { get; set; }
 
     ulong _chars;
 
@@ -106,7 +84,7 @@ public class Counter
     /// Initializes a new instance of the <see cref="Counter"/> class.
     /// </summary>
     /// <param name="bufferSize">A read buffer size, in bytes.</param>
-    public Counter(int bufferSize = 1024) => _buffer = new byte[bufferSize];
+    public Counter(int bufferSize = 1024) => _bufferSize = bufferSize;
 
     /// <summary>
     /// Clears the statistics.
@@ -130,7 +108,7 @@ public class Counter
         ArgumentNullException.ThrowIfNull(encoding, nameof(encoding));
         ThrowIfNoMode();
 
-        if (!_countWords && !_countChars)
+        if (!CountWords && !CountCharacters)
         {
             CountFast(stream);
         }
@@ -142,7 +120,7 @@ public class Counter
 
     void ThrowIfNoMode()
     {
-        if (!_countBytes && !_countNewLines && !_countWords && !_countChars)
+        if (!CountBytes && !CountNewLines && !CountWords && !CountCharacters)
         {
             throw new InvalidOperationException();
         }
@@ -150,21 +128,30 @@ public class Counter
 
     void CountFast(Stream stream)
     {
-        Span<byte> buf = _buffer;
+        bool countLines = CountNewLines;
+        byte[] buf = ArrayPool<byte>.Shared.Rent(_bufferSize);
+        Span<byte> span = buf;
 
-        bool skipLF = false;
-
-        int read = stream.Read(buf);
-        while (read > 0)
+        try
         {
-            _bytes += (ulong)read;
+            bool skipLF = false;
 
-            if (_countNewLines)
+            int read = stream.Read(span);
+            while (read > 0)
             {
-                skipLF = CountLines(buf.Slice(0, read), skipLF);
-            }
+                Interlocked.Add(ref _bytes, (ulong)read);
 
-            read = stream.Read(buf);
+                if (countLines)
+                {
+                    skipLF = CountLines(span.Slice(0, read), skipLF);
+                }
+
+                read = stream.Read(span);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buf);
         }
     }
 
@@ -178,14 +165,14 @@ public class Counter
             byte c = buf[i];
             if (c == CR)
             {
-                ++_lines;
+                Interlocked.Increment(ref _lines);
                 skipLF = true;
             }
             else if (c == LF)
             {
                 if (!skipLF)
                 {
-                    ++_lines;
+                    Interlocked.Increment(ref _lines);
                 }
                 skipLF = false;
             }
@@ -196,56 +183,73 @@ public class Counter
 
     void CountSlow(Stream stream, Encoding encoding)
     {
-        Span<byte> buf = _buffer;
-        int decodedSize = encoding.GetMaxCharCount(_buffer.Length);
-        Span<char> decodedBuffer = new char[decodedSize];
+        byte[] buf = ArrayPool<byte>.Shared.Rent(_bufferSize);
+        Span<byte> span = buf;
 
-        bool skipLF = false;
-        bool hasWord = false;
-        Decoder decoder = encoding.GetDecoder();
+        char[]? decodedBuf = null;
 
-        int read = stream.Read(buf);
-        int decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, read <= 0);
-
-        while (decoded > 0)
+        try
         {
-            _bytes += (ulong)read;
-            _chars += (ulong)decoded;
+            int decodedSize = encoding.GetMaxCharCount(span.Length);
+            decodedBuf = ArrayPool<char>.Shared.Rent(decodedSize);
+            Span<char> decodedSpan = decodedBuf;
 
-            for (int i = 0; i < decoded; ++i)
+            bool skipLF = false;
+            bool hasWord = false;
+            Decoder decoder = encoding.GetDecoder();
+
+            int read = stream.Read(span);
+            int decoded = decoder.GetChars(span.Slice(0, read), decodedSpan, read <= 0);
+
+            while (decoded > 0)
             {
-                char ch = decodedBuffer[i];
+                Interlocked.Add(ref _bytes, (ulong)read);
+                Interlocked.Add(ref _chars, (ulong)decoded);
 
-                if (!char.IsWhiteSpace(ch))
+                for (int i = 0; i < decoded; ++i)
                 {
-                    hasWord = true;
-                }
-                else
-                {
-                    if (hasWord)
-                    {
-                        ++_words;
-                    }
-                    hasWord = false;
+                    char ch = decodedSpan[i];
 
-                    if (ch == '\r')
+                    if (!char.IsWhiteSpace(ch))
                     {
-                        ++_lines;
-                        skipLF = true;
+                        hasWord = true;
                     }
-                    else if (ch == '\n')
+                    else
                     {
-                        if (!skipLF)
+                        if (hasWord)
                         {
-                            ++_lines;
+                            Interlocked.Increment(ref _words);
                         }
-                        skipLF = false;
+                        hasWord = false;
+
+                        if (ch == '\r')
+                        {
+                            Interlocked.Increment(ref _lines);
+                            skipLF = true;
+                        }
+                        else if (ch == '\n')
+                        {
+                            if (!skipLF)
+                            {
+                                Interlocked.Increment(ref _lines);
+                            }
+                            skipLF = false;
+                        }
                     }
                 }
+
+                read = stream.Read(span);
+                decoded = decoder.GetChars(span.Slice(0, read), decodedSpan, read <= 0);
+            }
+        }
+        finally
+        {
+            if (decodedBuf is not null)
+            {
+                ArrayPool<char>.Shared.Return(decodedBuf);
             }
 
-            read = stream.Read(buf);
-            decoded = decoder.GetChars(buf.Slice(0, read), decodedBuffer, read <= 0);
+            ArrayPool<byte>.Shared.Return(buf);
         }
     }
 }
