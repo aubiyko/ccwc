@@ -110,7 +110,14 @@ public class Counter
 
         if (!CountWords && !CountCharacters)
         {
-            CountFast(stream);
+            if (!CountNewLines)
+            {
+                TryUseLength(stream);
+            }
+            else
+            {
+                CountFast(stream);
+            }
         }
         else
         {
@@ -123,6 +130,19 @@ public class Counter
         if (!CountBytes && !CountNewLines && !CountWords && !CountCharacters)
         {
             throw new InvalidOperationException();
+        }
+    }
+
+    void TryUseLength(Stream stream)
+    {
+        try
+        {
+            ulong len = (ulong)stream.Length;
+            Interlocked.Add(ref _bytes, len);
+        }
+        catch
+        {
+            CountFast(stream);
         }
     }
 
