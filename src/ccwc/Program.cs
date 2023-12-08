@@ -30,21 +30,39 @@ return result.MapResult(Run, _ => DisplayHelp(result));
 
 static int Run(Options cliOptions)
 {
+    object lck = new object();
+
     var results = new List<(string, Counter)>(cliOptions.FileNames.Count());
+
+    ulong totalLines = 0;
+    ulong totalWords = 0;
+    ulong totalChars = 0;
+    ulong totalBytes = 0;
 
     try
     {
         int codePage = CultureInfo.CurrentCulture.TextInfo.ANSICodePage;
         var encoding = Encoding.GetEncoding(codePage);
 
-        ulong totalLines = 0;
-        ulong totalWords = 0;
-        ulong totalChars = 0;
-        ulong totalBytes = 0;
-
-        foreach (string fileName in cliOptions.FileNames)
+        Parallel.ForEach(cliOptions.FileNames.Where(f => f != Options.StdIn), (fileName) =>
         {
             Counter counter = Count(cliOptions, fileName, encoding);
+
+            lock (lck)
+            {
+                results.Add((fileName, counter));
+
+                totalLines += counter.Lines;
+                totalWords += counter.Words;
+                totalChars += counter.Characters;
+                totalBytes += counter.Bytes;
+            }
+        });
+
+        foreach (string? fileName in cliOptions.FileNames.Where(f => f == Options.StdIn))
+        {
+            Counter counter = Count(cliOptions, fileName, encoding);
+
             results.Add((fileName, counter));
 
             totalLines += counter.Lines;
@@ -108,6 +126,12 @@ static int Run(Options cliOptions)
 
             Console.WriteLine("total");
         }
+    }
+    catch (AggregateException ex)
+    {
+        ex = ex.Flatten();
+        Console.Error.WriteLine(ex.InnerExceptions.First().Message);
+        return -1;
     }
     catch (SystemException ex) when (ex is ArgumentException
         || ex is NotSupportedException
